@@ -55,7 +55,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: env.TAG_TYPE == 'alphanumeric'
         with:
-          prerelease: true
+          draft: true
           files: |
             SHA256SUMS
             *.raw
@@ -117,7 +117,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: env.TAG_TYPE == 'alphanumeric'
         with:
-          prerelease: true
+          draft: true
           files: |
             SHA256SUMS
             *.raw
