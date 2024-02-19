@@ -56,10 +56,11 @@ jobs:
               "teleport-9.3.26"
               "teleport-10.3.16"
               "teleport-11.3.27"
-              "teleport-12.4.30"
-              "teleport-13.4.11"
+              "teleport-12.4.34"
+              "teleport-13.4.16"
               "teleport-14.2.3"
-              "teleport-14.3.0"
+              "teleport-14.3.6"
+              "teleport-15.0.2"
           )
 
           for image in ${images[@]}; do
@@ -100,7 +101,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        flatcarversion: ["3602.2.0", "3602.2.1", "3602.2.2", "3602.2.3"]
+        flatcarversion: ["3510.2.7", "3602.2.3", "3760.2.0", "3815.2.0"]
     permissions:
       # allow the action to create a release
       contents: write
@@ -147,16 +148,16 @@ jobs:
           set -euo pipefail
 
           images=(
-              "zfs-2.1.12-${{ matrix.flatcarversion }}"
+              "zfs-${{ matrix.flatcarversion }}"
           )
 
           for image in ${images[@]}; do
-              component="${image%%-*}"
-              flatcarversion="${image##*-}"
-              temp="${image#*-}"
-              version="${temp%-*}"
-              "./create_${component}_sysext.sh" "${version}" "${component}" "${flatcarversion}"
-              mv "${component}.raw" "${image}.raw"
+              component="${image%-*}"
+              flatcarversion="${image#*-}"
+              "./create_${component}_sysext.sh" "${component}" "${flatcarversion}"
+              baked_component=$(ls ${component}-*.raw)
+              sysext_name="${baked_component%.raw}-${flatcarversion}.raw"
+              mv "$baked_component" "$sysext_name"
           done
 
           sha256sum *.raw >> SHA256SUMS
