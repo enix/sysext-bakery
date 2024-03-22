@@ -57,10 +57,10 @@ jobs:
               "teleport-10.3.16"
               "teleport-11.3.27"
               "teleport-12.4.34"
-              "teleport-13.4.16"
+              "teleport-13.4.20"
               "teleport-14.2.3"
-              "teleport-14.3.6"
-              "teleport-15.0.2"
+              "teleport-14.3.13"
+              "teleport-15.1.9"
           )
 
           for image in ${images[@]}; do
@@ -101,7 +101,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        flatcarversion: ["3510.2.7", "3602.2.3", "3760.2.0", "3815.2.0"]
+        flatcarversion: ["3510.2.7", "3602.2.3", "3760.2.0", "3815.2.0", "3815.2.1"]
     permissions:
       # allow the action to create a release
       contents: write
