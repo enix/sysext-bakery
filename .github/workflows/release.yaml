@@ -170,6 +170,7 @@ jobs:
           files: |
             SHA256SUMS
             *.raw
+            files/*.conf
       - name: Draft Release
         uses: softprops/action-gh-release@v1
         if: env.TAG_TYPE == 'alphanumeric'
@@ -178,3 +179,4 @@ jobs:
           files: |
             SHA256SUMS
             *.raw
+            files/*.conf
