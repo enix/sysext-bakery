@@ -6,17 +6,17 @@ jobs:
     name: Build
     concurrency:
       group: ${{ github.ref }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       # allow the action to create a release
       contents: write
     steps:
       # checkout the sources
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Get git tag
         id: tag
-        uses: devops-actions/action-get-tag@v1.0.2
+        uses: devops-actions/action-get-tag@v1.0.4
 
       - name: Tag / Release checks
         id: tagcheck
@@ -41,7 +41,7 @@ jobs:
       - name: Asset download
         continue-on-error: true
         if: ${{ steps.get_release.outputs.id }}
-        uses: dsaltares/fetch-gh-release-asset@1.1.1
+        uses: dsaltares/fetch-gh-release-asset@1.1.2
         with:
          version: ${{ steps.get_release.outputs.id }}
          file: 'SHA256SUMS'
@@ -84,15 +84,12 @@ jobs:
           files: |
             SHA256SUMS
             *.raw
-      - name: Blinky
-        run: |
-          curl -o /dev/null https://app.getblinky.io/api/v1/ingest/webhook/be6f78fd-ca93-4642-8bae-678f73eb0014
 
   multi-build:
     name: Multi version build
     concurrency:
       group: ${{ github.ref }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:  mediadepot/flatcar-developer:${{ matrix.flatcarversion }}
     strategy:
       max-parallel: 1
@@ -107,7 +104,7 @@ jobs:
 
       - name: Get git tag
         id: tag
-        uses: devops-actions/action-get-tag@v1.0.2
+        uses: devops-actions/action-get-tag@v1.0.4
 
       - name: Tag / Release checks
         id: tagcheck
@@ -132,7 +129,7 @@ jobs:
       - name: Asset download
         continue-on-error: true
         if: ${{ steps.get_release.outputs.id }}
-        uses: dsaltares/fetch-gh-release-asset@1.1.1
+        uses: dsaltares/fetch-gh-release-asset@1.1.2
         with:
          version: ${{ steps.get_release.outputs.id }}
          file: 'SHA256SUMS'
