@@ -100,7 +100,7 @@ jobs:
       contents: write
     steps:
       # checkout the sources
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Get git tag
         id: tag
