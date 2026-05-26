@@ -58,7 +58,10 @@ WantedBy=multi-user.target
 EOF
 
 mkdir -p "${SYSEXTNAME}/usr/lib/systemd/system/multi-user.target.d"
-{ echo "[Unit]"; echo "Upholds=teleport.service"; } > "${SYSEXTNAME}/usr/lib/systemd/system/multi-user.target.d/10-teleport-service.conf"
+cat > "${SYSEXTNAME}/usr/lib/systemd/system/multi-user.target.d/10-teleport-service.conf" <<-'EOF'
+[Unit]
+Upholds=teleport.service
+EOF
 
 "${SCRIPTFOLDER}"/bake.sh "${SYSEXTNAME}"
 rm -rf "${SYSEXTNAME}"

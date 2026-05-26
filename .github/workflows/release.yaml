@@ -63,7 +63,7 @@ jobs:
               component="${image%-*}"
               version="${image#*-}"
               "./create_${component}_sysext.sh" "${version}" "${component}"
-              mv "${component}.raw" "${image}.raw"
+              mv "${component}.raw" "${image}-x86-64.raw"
           done
 
           sha256sum *.raw >> SHA256SUMS

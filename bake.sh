@@ -45,6 +45,9 @@ mkdir -p "${SYSEXTNAME}/usr/lib/extension-release.d"
   if [ "${ARCH}" != "" ]; then
     echo "ARCHITECTURE=${ARCH}"
   fi
+  if [ "${RELOAD_MANAGER:-}" = "1" ]; then
+    echo "EXTENSION_RELOAD_MANAGER=1"
+  fi
 } > "${SYSEXTNAME}/usr/lib/extension-release.d/extension-release.${SYSEXTNAME}"
 rm -f "${SYSEXTNAME}".raw
 if [ "${FORMAT}" = "btrfs" ]; then
