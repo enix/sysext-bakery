@@ -63,5 +63,5 @@ cat > "${SYSEXTNAME}/usr/lib/systemd/system/multi-user.target.d/10-teleport-serv
 Upholds=teleport.service
 EOF
 
-"${SCRIPTFOLDER}"/bake.sh "${SYSEXTNAME}"
+RELOAD_MANAGER=1 "${SCRIPTFOLDER}"/bake.sh "${SYSEXTNAME}"
 rm -rf "${SYSEXTNAME}"
