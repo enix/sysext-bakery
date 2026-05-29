@@ -10,7 +10,7 @@
 libroot="$(dirname "${BASH_SOURCE[0]}")"
 scriptroot="$(cd "$(dirname "${BASH_SOURCE[0]}")/../"; pwd)"
 
-bakery="flatcar/sysext-bakery"
+bakery="enix/sysext-bakery"
 bakery_hub="extensions.flatcar.org"
 
 if [[ -s "${scriptroot}/.env" ]]; then
