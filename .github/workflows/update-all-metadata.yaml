@@ -9,7 +9,7 @@ jobs:
     outputs:
       extensions: ${{ steps.list.outputs.extensions }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
@@ -42,7 +42,7 @@ jobs:
       # allow the action to create a release
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
@@ -79,7 +79,7 @@ jobs:
       # allow the action to create a release
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
