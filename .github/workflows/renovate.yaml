@@ -1,0 +1,184 @@
+name: Renovate
+
+# Self-hosted Renovate running on GitHub Actions. The Mend-hosted Renovate
+# App is not used here; instead, this workflow runs `renovate-cli` on a
+# schedule (and on demand) under a GitHub App identity that we own.
+#
+# Why self-hosted on Actions:
+#   - Full control over the runtime (Renovate version, log retention,
+#     network egress, presets/cache).
+#   - No dependency on Mend's hosted scheduler — bumps run when WE say.
+#   - Same `renovate.json5` config — no migration of repo-level rules.
+#   - Auditable: every run is a workflow execution with logs in this repo.
+#
+# Manual setup (one-time):
+#
+#   1. Create a GitHub App ("Renovate Bot" or similar) at
+#        https://github.com/organizations/<org>/settings/apps/new
+#      Permissions (Repository):
+#        - Contents:        Read & write   (commit, push branches)
+#        - Pull requests:   Read & write   (open, update, close PRs)
+#        - Issues:          Read & write   (Dependency Dashboard issue)
+#        - Workflows:       Read & write   (modify .github/workflows/* PRs)
+#        - Metadata:        Read           (mandatory)
+#      Subscribe to events: none required.
+#      User permissions: none.
+#
+#   2. Install the App on this repository (Settings → Integrations →
+#      GitHub Apps → Install). Restrict to "Only select repositories →
+#      x509-certificate-exporter".
+#
+#   3. Generate a private key for the App. Grab its Client ID (App
+#      settings page → "About" panel → "Client ID", string starting
+#      with `Iv1.` or `Iv23li...`) and the .pem; add both as repo
+#      secrets (Settings → Secrets and variables → Actions):
+#        RENOVATE_APP_CLIENT_ID    (Client ID, NOT the numeric App ID
+#                                   — those are different identifiers;
+#                                   actions/create-github-app-token v3+
+#                                   prefers the Client ID)
+#        RENOVATE_APP_PRIVATE_KEY  (paste the .pem file contents verbatim)
+#
+#   4. Push this workflow to `main`. The first scheduled run picks it up
+#      automatically; you can also fire `workflow_dispatch` to trigger
+#      manually.
+#
+# Why a GitHub App rather than a PAT:
+#   - Bot identity ("renovate-bot[bot]") rather than a human's account.
+#   - Token is minted per-run, short-lived (~1h), can't be exfiltrated
+#     long-term.
+#   - Commits made by the App's installation token DO trigger workflows
+#     downstream — necessary so CI runs on Renovate PRs.
+
+on:
+  # Adjust here, not in renovate.json5 — repo config's `schedule:` is for
+  # within-window timing, not for triggering the bot. Daily cadence keeps
+  # the reaction window to ≤24 h; Renovate is idempotent so runs with no
+  # changes are cheap (~30 s).
+  #
+  # GitHub Actions cron is UTC-only (no timezone support). 08:00 UTC =
+  # 09:00 Europe/Paris in winter (CET) / 10:00 in summer (CEST) — anchor
+  # to winter time so the "PRs land at the start of the workday" intent
+  # holds for half the year, drifts +1h the other half.
+  schedule:
+    - cron: "0 8 * * *"
+
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: "Renovate log level for this run"
+        type: choice
+        default: info
+        options: [debug, info, warn, error]
+      dryRun:
+        description: "Dry run mode (skip opening PRs)"
+        type: choice
+        default: disabled
+        options: [disabled, extract, lookup, full]
+      ignoreSchedule:
+        description: "Ignore the Monday-only schedule and process every dependency now"
+        type: boolean
+        default: false
+
+  # Catch malformed config or workflow updates on the same merge that
+  # introduces them — without this, a broken renovate.json5 sits unnoticed
+  # until the next weekly cron.
+  push:
+    branches: [main]
+    paths:
+      - "renovate.json5"
+      - ".github/workflows/renovate.yaml"
+
+# Default to read-only. The App token below carries the actual write
+# capabilities — never the runner's GITHUB_TOKEN.
+permissions:
+  contents: read
+
+# Two concurrent Renovate runs race on branches like renovate/golang-toolchain
+# and produce duplicate or conflicting PRs. Queue them strictly.
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # Mint a short-lived installation token for the App. This is the
+      # identity Renovate uses to push branches and open PRs. The token
+      # expires automatically when the job ends; nothing persists.
+      - name: Generate App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@f66d8679fcfcfa051abde6e7a623007173bf5164 # v46
+        env:
+          LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
+          # Scope strictly to this repo. The App may have access to
+          # others; this prevents an accidental cross-repo run.
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_AUTODISCOVER: "false"
+          # Treat a missing or malformed renovate.json5 as a hard error
+          # rather than silently doing nothing.
+          RENOVATE_REQUIRE_CONFIG: required
+          # Authenticate to Docker Hub using the same secrets the release
+          # pipeline uses. Required for two reasons:
+          #   1. Anonymous pulls are rate-limited to 100/6h per IP. A full
+          #      Renovate run easily blows past that — the run aborts with
+          #      `external-host-error` and no PR ever gets opened.
+          #   2. Renovate can't determine new digests for digest-pinning
+          #      under anonymous limits, producing "Could not determine new
+          #      digest" warnings instead of actual updates.
+          # Authenticated calls bump the limit to 200/6h with a free
+          # Docker Hub account (and 5000+/day with paid). hostRules with
+          # matchHost: "index.docker.io" wires this in for Renovate.
+          # https://docs.renovatebot.com/configuration-options/#hostrules
+          # Two hostRules:
+          #   - index.docker.io:  see comment block above; opt-out of the
+          #                       anonymous 100/6h pull rate limit.
+          #   - api.github.com:   explicit override so github-tags digest
+          #                       lookups for cross-org actions (dagger/,
+          #                       sigstore/, renovatebot/, ossf/, …)
+          #                       authenticate via the workflow's
+          #                       GITHUB_TOKEN instead of the App-installation
+          #                       token, which is scoped to enix/x509-…
+          #                       and is unreliable on cross-org git/refs
+          #                       reads (Renovate logs them as "Could not
+          #                       determine new digest for update").
+          # `matchHost: "api.github.com"` is critical — `github.com` does
+          # NOT match `api.github.com` for Renovate's host-matching, and
+          # the github-tags datasource calls api.github.com/repos/.../git/refs.
+          # The platform token used to push branches and open PRs stays
+          # the App token (set via the `token:` input below).
+          RENOVATE_HOST_RULES: |
+            [
+              {
+                "matchHost": "index.docker.io",
+                "username": "${{ secrets.DOCKERHUB_READONLY_USERNAME }}",
+                "password": "${{ secrets.DOCKERHUB_READONLY_TOKEN }}"
+              },
+              {
+                "matchHost": "api.github.com",
+                "token": "${{ github.token }}"
+              }
+            ]
+          # Dry run only when explicitly requested via workflow_dispatch.
+          # GHA ternary `cond && '' || x` is broken: empty-string is falsy so
+          # the `||` always fires. Invert: pass the value when it's a real mode,
+          # leave unset (empty) otherwise — which is Renovate's "no dry-run".
+          RENOVATE_DRY_RUN: ${{ (inputs.dryRun != '' && inputs.dryRun != 'disabled') && inputs.dryRun || '' }}
+          # `force` is a self-hosted-only knob whose JSON object overrides
+          # everything in renovate.json5 (including presets) for the duration
+          # of the run. Used here to nullify the Monday-only `schedule:` so
+          # the user can dispatch a "process everything now" run on demand.
+          # https://docs.renovatebot.com/self-hosted-configuration/#force
+          RENOVATE_FORCE: ${{ inputs.ignoreSchedule && '{"schedule":null}' || '' }}
+        with:
+          token: ${{ steps.app-token.outputs.token }}
