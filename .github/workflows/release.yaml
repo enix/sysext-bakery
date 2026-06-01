@@ -67,7 +67,7 @@ jobs:
       contents: write
     steps:
       - name: Set up qemu / binmft misc for cross-platform builds
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Check out the bakery repo
         uses: actions/checkout@v4
