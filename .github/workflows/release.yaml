@@ -11,6 +11,12 @@ on:
   schedule:
     # Each day at 5am UTC
     - cron:  '0 5 * * *'
+  # Enix: run as soon as Renovate (or a manual edit) updates the tracked versions
+  push:
+    branches:
+      - main
+    paths:
+      - 'release_build_versions.txt'
 
 jobs:
   list-builds:

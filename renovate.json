@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^release_build_versions\\.txt$"],
+      "matchStrings": [
+        "^teleport (?<currentValue>v\\d+\\.\\d+\\.\\d+)$"
+      ],
+      "depNameTemplate": "gravitational/teleport",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["gravitational/teleport"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false,
+      "description": "Never propose cross-major upgrades; each line in release_build_versions.txt is pinned to its major. To track a new major, add the line manually."
+    },
+    {
+      "matchPackageNames": ["gravitational/teleport"],
+      "commitMessageTopic": "teleport",
+      "commitMessagePrefix": "chore(release):",
+      "commitMessageAction": "bump"
+    }
+  ]
+}
