@@ -3,6 +3,7 @@
   "extends": [
     "config:recommended"
   ],
+  "dependencyDashboard": true,
   "customManagers": [
     {
       "customType": "regex",
@@ -11,7 +12,8 @@
         "^teleport (?<currentValue>v\\d+\\.\\d+\\.\\d+)$"
       ],
       "depNameTemplate": "gravitational/teleport",
-      "datasourceTemplate": "github-releases"
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver-coerced"
     }
   ],
   "packageRules": [
