@@ -7,9 +7,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^release_build_versions\\.txt$/"],
+      "managerFilePatterns": ["release_build_versions.txt"],
       "matchStrings": [
-        "^teleport (?<currentValue>v\\d+\\.\\d+\\.\\d+)$"
+        "(?m)^teleport (?<currentValue>v\\d+\\.\\d+\\.\\d+)$"
       ],
       "depNameTemplate": "gravitational/teleport",
       "datasourceTemplate": "github-releases",
