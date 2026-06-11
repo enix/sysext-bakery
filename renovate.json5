@@ -7,7 +7,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^release_build_versions\\.txt$"],
+      "managerFilePatterns": ["/^release_build_versions\\.txt$/"],
       "matchStrings": [
         "^teleport (?<currentValue>v\\d+\\.\\d+\\.\\d+)$"
       ],
