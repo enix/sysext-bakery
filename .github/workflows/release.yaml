@@ -95,8 +95,8 @@ jobs:
           ./release.sh ${{ matrix.release }}
 
       # Enix: publish to per-major tag (teleport-v17, teleport-v18, ...).
-      # Asset filenames carry the full version. Stale assets are wiped on
-      # update since filenames change between patches.
+      # Additive: appends this patch's assets, merges SHA256SUMS lines into
+      # the existing file. Retention is handled by the cleanup job below.
       - name: publish to per-major release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -108,29 +108,112 @@ jobs:
           major="${ver%%.*}"
           tag="${ext}-${major}"
 
-          if gh release view "$tag" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            while IFS= read -r asset; do
-              [[ -z "$asset" ]] && continue
-              gh release delete-asset "$tag" "$asset" \
-                --repo "${GITHUB_REPOSITORY}" --yes
-            done < <(gh release view "$tag" \
-                       --repo "${GITHUB_REPOSITORY}" \
-                       --json assets --jq '.assets[].name')
-
-            gh release edit "$tag" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --notes-file Release.md
-
-            gh release upload "$tag" \
-              --repo "${GITHUB_REPOSITORY}" \
-              SHA256SUMS *.raw *.conf *-build.log
-          else
+          if ! gh release view "$tag" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release create "$tag" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "$tag" \
               --notes-file Release.md \
               SHA256SUMS *.raw *.conf *-build.log
+            exit 0
           fi
+
+          # Merge existing SHA256SUMS with the new build's lines.
+          mkdir -p _old
+          gh release download "$tag" --repo "${GITHUB_REPOSITORY}" \
+            --pattern SHA256SUMS --dir _old/ --clobber 2>/dev/null || true
+          if [[ -f _old/SHA256SUMS ]]; then
+            cat _old/SHA256SUMS SHA256SUMS | sort -u > SHA256SUMS.merged
+            mv SHA256SUMS.merged SHA256SUMS
+          fi
+          rm -rf _old
+
+          gh release edit "$tag" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --notes-file Release.md
+
+          gh release upload "$tag" \
+            --repo "${GITHUB_REPOSITORY}" --clobber \
+            SHA256SUMS *.raw *.conf *-build.log
+
+  # Enix: trim each per-major release to keep only the KEEP most recent patches.
+  # Runs unconditionally after create-release (whether it built anything or not),
+  # so any drift gets corrected on every workflow trigger — including cron ticks.
+  cleanup-per-major-releases:
+    needs: create-release
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      KEEP: "3"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
+          path: bakery
+
+      - name: trim old patches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd bakery
+
+          declare -A seen
+          while IFS=' ' read -r ext ver; do
+            [[ -z "$ext" || -z "$ver" ]] && continue
+            [[ "$ver" =~ ^(v[0-9]+)\. ]] || continue
+            major="${BASH_REMATCH[1]}"
+            tag="${ext}-${major}"
+            [[ -n "${seen[$tag]:-}" ]] && continue
+            seen[$tag]=1
+
+            if ! gh release view "$tag" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              continue
+            fi
+
+            mapfile -t patches < <(
+              gh release view "$tag" --repo "${GITHUB_REPOSITORY}" \
+                --json assets --jq '.assets[].name' \
+                | grep -oE "^${ext}-v[0-9]+\.[0-9]+\.[0-9]+-" \
+                | sed -E "s/^${ext}-(v[0-9]+\.[0-9]+\.[0-9]+)-$/\1/" \
+                | sort -uV
+            )
+
+            count=${#patches[@]}
+            if [[ $count -le $KEEP ]]; then
+              echo "${tag}: ${count} patches, within KEEP=${KEEP}, nothing to trim."
+              continue
+            fi
+
+            drop_count=$((count - KEEP))
+            to_delete=("${patches[@]:0:$drop_count}")
+            echo "${tag}: dropping ${to_delete[*]}"
+
+            pattern=""
+            for del_v in "${to_delete[@]}"; do
+              pattern="${pattern:+${pattern}|}${ext}-${del_v}-"
+              gh release view "$tag" --repo "${GITHUB_REPOSITORY}" \
+                --json assets --jq '.assets[].name' \
+                | grep "^${ext}-${del_v}-" \
+                | while IFS= read -r asset; do
+                    gh release delete-asset "$tag" "$asset" \
+                      --repo "${GITHUB_REPOSITORY}" --yes
+                  done
+            done
+
+            # Drop deleted patches' lines from SHA256SUMS.
+            mkdir -p _trim
+            gh release download "$tag" --repo "${GITHUB_REPOSITORY}" \
+              --pattern SHA256SUMS --dir _trim/ --clobber 2>/dev/null || true
+            if [[ -f _trim/SHA256SUMS ]]; then
+              grep -vE "  (${pattern})" _trim/SHA256SUMS > _trim/SHA256SUMS.new || true
+              mv _trim/SHA256SUMS.new _trim/SHA256SUMS
+              gh release upload "$tag" --repo "${GITHUB_REPOSITORY}" --clobber \
+                _trim/SHA256SUMS
+            fi
+            rm -rf _trim
+          done < <(sed -e 's:\s*#.*::' -e 's/[[:space:]]*$//' -e '/^$/d' release_build_versions.txt)
 
   update-extension-metadata:
     needs: [ list-builds, create-release ]
