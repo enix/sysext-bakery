@@ -94,17 +94,43 @@ jobs:
           pushd bakery
           ./release.sh ${{ matrix.release }}
 
-      - name: create a new release
-        uses: softprops/action-gh-release@v3
-        with:
-          make_latest: false
-          tag_name: ${{ steps.build.outputs.tag }}
-          body_path: bakery/Release.md
-          files: |
-            bakery/SHA256SUMS
-            bakery/*.raw
-            bakery/*.conf
-            bakery/*-build.log
+      # Enix: publish to per-major tag (teleport-v17, teleport-v18, ...).
+      # Asset filenames carry the full version. Stale assets are wiped on
+      # update since filenames change between patches.
+      - name: publish to per-major release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd bakery
+
+          IFS=':' read -r ext ver <<< "${{ matrix.release }}"
+          major="${ver%%.*}"
+          tag="${ext}-${major}"
+
+          if gh release view "$tag" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            while IFS= read -r asset; do
+              [[ -z "$asset" ]] && continue
+              gh release delete-asset "$tag" "$asset" \
+                --repo "${GITHUB_REPOSITORY}" --yes
+            done < <(gh release view "$tag" \
+                       --repo "${GITHUB_REPOSITORY}" \
+                       --json assets --jq '.assets[].name')
+
+            gh release edit "$tag" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --notes-file Release.md
+
+            gh release upload "$tag" \
+              --repo "${GITHUB_REPOSITORY}" \
+              SHA256SUMS *.raw *.conf *-build.log
+          else
+            gh release create "$tag" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "$tag" \
+              --notes-file Release.md \
+              SHA256SUMS *.raw *.conf *-build.log
+          fi
 
   update-extension-metadata:
     needs: [ list-builds, create-release ]

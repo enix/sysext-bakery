@@ -34,7 +34,14 @@ for image in "${images[@]}"; do
   for v in "${version[@]}"; do
     echo -n "*  ${extension} ${v}: "
 
-    if github_release_exists "${bakery%/*}" "${bakery#*/}" "${extension}-${v}"; then
+    # Enix: releases are per-major (e.g., teleport-v17), with version-stamped
+    # asset filenames (teleport-v17.7.24-x86-64.raw). Check asset presence
+    # on the per-major release instead of tag existence.
+    major="${v%%.*}"
+    if curl_api_wrapper \
+         "https://api.github.com/repos/${bakery%/*}/${bakery#*/}/releases/tags/${extension}-${major}" 2>/dev/null \
+       | jq -e --arg prefix "${extension}-${v}-" \
+           '.assets[] | select(.name | startswith($prefix))' >/dev/null 2>&1; then
       echo "Bakery release exists."
       continue
     fi
