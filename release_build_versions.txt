@@ -20,4 +20,4 @@
 
 teleport v16.5.18
 teleport v17.7.25
-teleport v18.8.2
+teleport v18.8.3
