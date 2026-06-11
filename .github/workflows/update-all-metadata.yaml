@@ -4,39 +4,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  list-extensions:
-    runs-on: ubuntu-24.04
-    outputs:
-      extensions: ${{ steps.list.outputs.extensions }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
-          path: bakery
-
-      - name: install prerequisites
-        run: |
-          set -euxo pipefail
-
-          sudo apt update -qq && sudo apt install -yqq \
-            curl \
-            jq
-
-      - name: list
-        id: list
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pushd bakery
-          echo -n "extensions=" >> $GITHUB_OUTPUT
-          mapfile -t list < <(./bakery.sh list --plain true)
-          jq -r -c -n --args '$ARGS.positional' "${list[@]}" >> $GITHUB_OUTPUT
-
+  # Enix: this fork only builds teleport, so the matrix is static. Upstream
+  # discovers extensions dynamically via `bakery.sh list`; we don't need that.
   update-extension-metadata:
-    needs: [ list-extensions ]
     strategy:
       matrix:
-        extension: ${{ fromJson(needs.list-extensions.outputs.extensions) }}
+        extension: [teleport]
     runs-on: ubuntu-24.04
     permissions:
       # allow the action to create a release
@@ -92,12 +65,27 @@ jobs:
             curl \
             jq
 
-      - name: Fetch all extension releases metadata
+      # Enix: upstream's `release_meta.sh` (no arg) iterates over every
+      # extension declared in the repo and hits the GitHub API for each one
+      # — wasteful when we only build teleport. Run it in extension mode
+      # against teleport (whose SHA256SUMS already aggregates every patch),
+      # then rewrite the body so the global tag still reads as global.
+      - name: Fetch teleport metadata for the global tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pushd bakery
-          ./release_meta.sh
+          ./release_meta.sh teleport
+          {
+            echo "# Global SHA256SUMS metadata release."
+            echo ""
+            echo "Updated $(date --rfc-3339 seconds)"
+            echo ""
+            echo "This fork only builds teleport; checksums below cover every"
+            echo "teleport patch currently retained across per-major releases."
+            echo ""
+            sed 's:.*\s:  * :' SHA256SUMS
+          } > Release.md
 
       - name: create new metadata release
         uses: softprops/action-gh-release@v3

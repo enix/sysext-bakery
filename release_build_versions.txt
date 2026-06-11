@@ -19,5 +19,5 @@
 # Enix fork: we only build the teleport sysext on this repo.
 
 teleport v16.5.18
-teleport v17.7.23
+teleport v17.7.25
 teleport v18.8.3
