@@ -25,7 +25,7 @@ jobs:
       builds: ${{ steps.list.outputs.builds }}
       extensions: ${{ steps.list.outputs.extensions }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
@@ -70,7 +70,7 @@ jobs:
         uses: docker/setup-qemu-action@v4
 
       - name: Check out the bakery repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
@@ -147,7 +147,7 @@ jobs:
     env:
       KEEP: "3"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
@@ -226,7 +226,7 @@ jobs:
       # allow the action to create a release
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
@@ -267,7 +267,7 @@ jobs:
       # allow the action to create a release
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch != '' && inputs.branch || 'main' }}
           path: bakery
