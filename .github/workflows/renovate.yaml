@@ -26,7 +26,7 @@ name: Renovate
 #
 #   2. Install the App on this repository (Settings → Integrations →
 #      GitHub Apps → Install). Restrict to "Only select repositories →
-#      x509-certificate-exporter".
+#      sysext-bakery".
 #
 #   3. Generate a private key for the App. Grab its Client ID (App
 #      settings page → "About" panel → "Client ID", string starting
@@ -75,13 +75,13 @@ on:
         default: disabled
         options: [disabled, extract, lookup, full]
       ignoreSchedule:
-        description: "Ignore the Monday-only schedule and process every dependency now"
+        description: "Ignore any Renovate schedule and process every dependency now"
         type: boolean
         default: false
 
   # Catch malformed config or workflow updates on the same merge that
   # introduces them — without this, a broken renovate.json5 sits unnoticed
-  # until the next weekly cron.
+  # until the next daily cron.
   push:
     branches: [main]
     paths:
@@ -93,7 +93,7 @@ on:
 permissions:
   contents: read
 
-# Two concurrent Renovate runs race on branches like renovate/golang-toolchain
+# Two concurrent Renovate runs race on branches like renovate/gravitational-teleport-18.x
 # and produce duplicate or conflicting PRs. Queue them strictly.
 concurrency:
   group: renovate
@@ -148,7 +148,7 @@ jobs:
           #                       sigstore/, renovatebot/, ossf/, …)
           #                       authenticate via the workflow's
           #                       GITHUB_TOKEN instead of the App-installation
-          #                       token, which is scoped to enix/x509-…
+          #                       token, which is scoped to enix/sysext-bakery
           #                       and is unreliable on cross-org git/refs
           #                       reads (Renovate logs them as "Could not
           #                       determine new digest for update").
@@ -176,7 +176,7 @@ jobs:
           RENOVATE_DRY_RUN: ${{ (inputs.dryRun != '' && inputs.dryRun != 'disabled') && inputs.dryRun || '' }}
           # `force` is a self-hosted-only knob whose JSON object overrides
           # everything in renovate.json5 (including presets) for the duration
-          # of the run. Used here to nullify the Monday-only `schedule:` so
+          # of the run. Used here to nullify any `schedule:` (none today) so
           # the user can dispatch a "process everything now" run on demand.
           # https://docs.renovatebot.com/self-hosted-configuration/#force
           RENOVATE_FORCE: ${{ inputs.ignoreSchedule && '{"schedule":null}' || '' }}
