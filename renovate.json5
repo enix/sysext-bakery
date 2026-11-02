@@ -3,7 +3,7 @@
   "extends": [
     "config:recommended"
   ],
-  "dependencyDashboard": true,
+  "dependencyDashboard": false,
   "customManagers": [
     {
       "customType": "regex",
@@ -21,13 +21,13 @@
   ],
   "packageRules": [
     {
-      "matchPackageNames": ["gravitational/teleport"],
+      "matchDepNames": ["gravitational/teleport"],
       "matchUpdateTypes": ["major"],
       "enabled": false,
       "description": "Never propose cross-major upgrades; each line in release_build_versions.txt is pinned to its major. To track a new major, add the line manually."
     },
     {
-      "matchPackageNames": ["gravitational/teleport"],
+      "matchDepNames": ["gravitational/teleport"],
       "commitMessageTopic": "teleport",
       "commitMessagePrefix": "chore(release):",
       "commitMessageAction": "bump"
