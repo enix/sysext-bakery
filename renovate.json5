@@ -8,12 +8,15 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["release_build_versions.txt"],
+      "description": "Teleport stopped publishing GitHub releases (and tags lag behind) after v18.10.0; the official APT repo is the up-to-date source, with one channel per major (stable/vNN). The 'v' prefix stays in the file, outside currentValue.",
       "matchStrings": [
-        "(?m)^teleport (?<currentValue>v\\d+\\.\\d+\\.\\d+)$"
+        "(?m)^teleport v(?<currentValue>(?<major>\\d+)\\.\\d+\\.\\d+)$"
       ],
       "depNameTemplate": "gravitational/teleport",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "semver-coerced"
+      "packageNameTemplate": "teleport",
+      "datasourceTemplate": "deb",
+      "registryUrlTemplate": "https://apt.releases.teleport.dev/ubuntu?suite=noble&components=stable/v{{{major}}}&binaryArch=amd64",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [
