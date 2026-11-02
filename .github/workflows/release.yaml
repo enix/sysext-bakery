@@ -53,13 +53,14 @@ jobs:
     needs: list-builds
     if: ${{ needs.list-builds.outputs.builds != '[]' && needs.list-builds.outputs.builds != '' }}
     strategy:
+      fail-fast: false
       matrix:
         release: ${{ fromJson(needs.list-builds.outputs.builds) }}
     # Try to finish all jobs even if one fails.
     # Job fails can be transient and will be re-tried every time this action runs.
     # NOTE that this will cause succeeding jobs (update metadata) to run even if the whole matrix fails.
     #      This is intended and should not cause any issues[tm].
-    continue-on-error: true 
+    continue-on-error: true
 
     runs-on: ubuntu-26.04
     permissions:
@@ -107,6 +108,13 @@ jobs:
           IFS=':' read -r ext ver <<< "${{ matrix.release }}"
           major="${ver%%.*}"
           tag="${ext}-${major}"
+
+          # The generated sysupdate config points to the Flatcar hub
+          # (extensions.flatcar.org/extensions/<ext>/), which does not serve
+          # this fork's images. Point its [Source] Path to this per-major
+          # release instead, where SHA256SUMS and the .raw images live.
+          sed -i -E "s|^Path=https://.*|Path=https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/|" *.conf
+          grep -H '^Path=https://' *.conf
 
           if ! gh release view "$tag" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release create "$tag" \
@@ -217,10 +225,12 @@ jobs:
 
   update-extension-metadata:
     needs: [ list-builds, create-release ]
-    if: ${{ needs.list-builds.outputs.extensions != '[]' && needs.list-builds.outputs.extensions != '' }}
+    if: ${{ !cancelled() && needs.list-builds.outputs.extensions != '[]' && needs.list-builds.outputs.extensions != '' }}
     strategy:
+      fail-fast: false
       matrix:
         extension: ${{ fromJson(needs.list-builds.outputs.extensions) }}
+    continue-on-error: true
     runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
@@ -255,13 +265,15 @@ jobs:
           make_latest: false
           tag_name: ${{ matrix.extension }}
           body_path: bakery/Release.md
+          # Enix: no sysupdate .conf here. Images live in the per-major
+          # releases (<ext>-vNN), each publishing its own .conf; a single
+          # aggregated .conf would point to a release without images.
           files: |
             bakery/SHA256SUMS
-            bakery/*.conf
 
   update-global-metadata:
-    needs: update-extension-metadata
-    if: ${{ needs.list-builds.outputs.extensions != '[]' && needs.list-builds.outputs.extensions != '' }}
+    needs: [ list-builds, update-extension-metadata ]
+    if: ${{ !cancelled() && needs.list-builds.outputs.extensions != '[]' && needs.list-builds.outputs.extensions != '' }}
     runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
