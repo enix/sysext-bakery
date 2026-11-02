@@ -108,6 +108,13 @@ jobs:
           major="${ver%%.*}"
           tag="${ext}-${major}"
 
+          # The generated sysupdate config points to the Flatcar hub
+          # (extensions.flatcar.org/extensions/<ext>/), which does not serve
+          # this fork's images. Point its [Source] Path to this per-major
+          # release instead, where SHA256SUMS and the .raw images live.
+          sed -i -E "s|^Path=https://.*|Path=https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/|" *.conf
+          grep -H '^Path=https://' *.conf
+
           if ! gh release view "$tag" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release create "$tag" \
               --repo "${GITHUB_REPOSITORY}" \
