@@ -21,13 +21,13 @@
   ],
   "packageRules": [
     {
-      "matchDepNames": ["gravitational/teleport"],
+      "matchPackageNames": ["gravitational/teleport"],
       "matchUpdateTypes": ["major"],
       "enabled": false,
       "description": "Never propose cross-major upgrades; each line in release_build_versions.txt is pinned to its major. To track a new major, add the line manually."
     },
     {
-      "matchDepNames": ["gravitational/teleport"],
+      "matchPackageNames": ["gravitational/teleport"],
       "commitMessageTopic": "teleport",
       "commitMessagePrefix": "chore(release):",
       "commitMessageAction": "bump"
