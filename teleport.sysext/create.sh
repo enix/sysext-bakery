@@ -6,8 +6,26 @@
 
 RELOAD_SERVICES_ON_MERGE="true"
 
+# Teleport stopped publishing GitHub releases after v18.10.0 (and GitHub tags
+# lag behind), so versions are listed from the official APT repo instead: one
+# component per major (stable/vNN), each with its own Packages index.
 function list_available_versions() {
-  list_github_releases "gravitational" "teleport"
+  local repo="https://apt.releases.teleport.dev/ubuntu/dists/noble"
+  local curl="curl -fsSL --retry-delay 1 --retry 60 --retry-connrefused"
+  curl="$curl --retry-max-time 60 --connect-timeout 20"
+
+  local component
+  for component in $($curl "${repo}/Release" \
+                       | sed -n -r 's/^Components:[[:space:]]*//p' \
+                       | tr ' ' '\n' \
+                       | grep -E '^stable/v[0-9]+$'); do
+    $curl "${repo}/${component}/binary-amd64/Packages" \
+      | awk '/^Package:/ { pkg = $2 } /^Version:/ && pkg == "teleport" { print $2 }'
+  done \
+    | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+    | sed 's/^/v/' \
+    | sort -Vr \
+    | uniq
 }
 # --
 
