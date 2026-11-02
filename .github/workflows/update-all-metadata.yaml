@@ -8,8 +8,10 @@ jobs:
   # discovers extensions dynamically via `bakery.sh list`; we don't need that.
   update-extension-metadata:
     strategy:
+      fail-fast: false
       matrix:
         extension: [teleport]
+    continue-on-error: true
     runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
@@ -41,12 +43,13 @@ jobs:
           make_latest: false
           tag_name: ${{ matrix.extension }}
           body_path: bakery/Release.md
+          # Enix: no sysupdate .conf here, see release.yaml.
           files: |
             bakery/SHA256SUMS
-            bakery/*.conf
 
   update-global-metadata:
     needs: update-extension-metadata
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
