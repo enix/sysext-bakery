@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         extension: [teleport]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
       contents: write
@@ -47,7 +47,7 @@ jobs:
 
   update-global-metadata:
     needs: update-extension-metadata
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
       contents: write

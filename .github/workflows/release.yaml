@@ -20,7 +20,7 @@ on:
 
 jobs:
   list-builds:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       builds: ${{ steps.list.outputs.builds }}
       extensions: ${{ steps.list.outputs.extensions }}
@@ -61,7 +61,7 @@ jobs:
     #      This is intended and should not cause any issues[tm].
     continue-on-error: true 
 
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
       contents: write
@@ -141,7 +141,7 @@ jobs:
   cleanup-per-major-releases:
     needs: create-release
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     env:
@@ -221,7 +221,7 @@ jobs:
     strategy:
       matrix:
         extension: ${{ fromJson(needs.list-builds.outputs.extensions) }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
       contents: write
@@ -262,7 +262,7 @@ jobs:
   update-global-metadata:
     needs: update-extension-metadata
     if: ${{ needs.list-builds.outputs.extensions != '[]' && needs.list-builds.outputs.extensions != '' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       # allow the action to create a release
       contents: write
